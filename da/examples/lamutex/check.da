@@ -1,0 +1,90 @@
+import sys
+import time
+import random
+
+class sP(process):
+    def setup(s:set, nrequests:int): pass  # s is set of all other processes
+
+    def mutex(task):
+        -- request
+        c = logical_clock()
+        send(('request', c, self), to= s)
+        await(each(received(('request', c2, p)),
+                   has= received(('release', c2, p)) or (c, self) < (c2, p))
+              and each(p in s, has= some(received(('ack', c2, _p)), has= c2 > c)))
+        -- critical_section
+        task()
+        -- release
+        send(('release', c, self), to= s)
+
+    def receive(msg= ('request', _, p)):
+        send(('ack', logical_clock(), self), to= p)
+
+    def run():
+        def task(): output('in critical section')
+        for i in range(nrequests): mutex(task)
+
+        send(('done', self), to= s)
+        await(each(p in s, has= received(('done', p))))
+        output('terminating')
+
+class P(process, sP):
+    def setup(checker, s:set, nrequests:int):
+        super().setup(s,nrequests)
+
+    def run():
+        def task():
+            output('enter critical section')
+            send('enter', to=checker)
+            time.sleep(random.random())
+            send('exit', to=checker)
+            output('exit critical section')
+        for i in range(nrequests):
+            mutex(task)
+
+        send(('done', self), to=s)
+        await(each(p in s, has=received(('done', p))))
+        send(('terminating',), to=checker)
+        output('terminating')
+
+
+class Checker(process):
+    def setup(ps):
+        self.in_crit_sec = False
+        self.assert_failed = False
+        pass
+
+    def run():
+        # NB: cannot drop some, will hang, not compile/rt error
+        await(each (p in ps , has = some(received(('terminating',), from_ = _p))))
+        output('~~ polling ended . checking safety : ', S1(), S2())
+
+    def receive(msg= ('enter', ts)):
+        assert not self.in_crit_sec
+        self.in_crit_sec = True
+
+    def receive(msg= ('exit', ts)):
+        assert self.in_crit_sec
+        self.in_crit_sec = False
+
+
+    def S1():
+        return self.assert_failed
+
+    def S2():
+        pass
+
+
+def main():
+    nprocs = int(sys.argv[1]) if len(sys.argv) > 1 else 5
+    nrequests = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+
+    config(channel=Fifo, clock=Lamport)
+
+    checker = new(Checker)
+    ps = new(P, num=nprocs)
+    setup(checker, (ps,))
+    for p in ps:
+        setup(p, (checker, ps-{p}, nrequests))
+    start(ps)
+    start(checker)
