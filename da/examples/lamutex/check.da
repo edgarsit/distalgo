@@ -47,33 +47,39 @@ class P(process, sP):
         send(('terminating',), to=checker)
         output('terminating')
 
+    def send(m, to):
+        super().send(m, to)
+        super().send(('sent', m, to, logical_clock()), to= checker)
+
+    def receive (msg= m , from_= fr):
+        super().send(('rcvd', m, fr, logical_clock()), to= checker)
+
 
 class Checker(process):
     def setup(ps):
-        self.in_crit_sec = False
-        self.assert_failed = False
+        self.times = []
         pass
 
     def run():
-        # NB: cannot drop some, will hang, not compile/rt error
         await(each (p in ps , has = some(received(('terminating',), from_ = _p))))
-        output('~~ polling ended . checking safety : ', S1(), S2())
+        output('~~ polling ended . checking safety : ', S1())
 
-    def receive(msg= ('enter', ts)):
-        assert not self.in_crit_sec
-        self.in_crit_sec = True
-
-    def receive(msg= ('exit', ts)):
-        assert self.in_crit_sec
-        self.in_crit_sec = False
-
+    def receive(msg= ('enter' | 'exit', ts)):
+        self.times.append(msg)
 
     def S1():
-        return self.assert_failed
-
-    def S2():
-        pass
-
+        s = sorted(self.times, key=lambda x: x[1])
+        in_crit_sec = False
+        for time in s:
+            if time[0] == 'enter':
+                if in_crit_sec:
+                    return False
+                in_crit_sec = True
+            else :
+                if not in_crit_sec:
+                    return False
+                in_crit_sec = False
+        return True
 
 def main():
     nprocs = int(sys.argv[1]) if len(sys.argv) > 1 else 5
