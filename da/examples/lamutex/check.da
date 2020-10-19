@@ -16,7 +16,7 @@ class P(process, spec_lam.P):
             send('exit', to=checker)
             output('exit critical section')
         for i in range(nrequests):
-            eval("self.mutex(task)")
+            super().mutex(task)
 
         send(('done', self), to=s)
         await(each(p in s, has=received(('done', p))))
