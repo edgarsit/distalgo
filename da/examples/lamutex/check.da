@@ -6,7 +6,7 @@ import spec_lam
 
 class P(process, spec_lam.P):
     def setup(checker, s:set, nrequests:int):
-        super().setup(s,nrequests)
+        super().setup(s, nrequests)
 
     def run():
         def task():
@@ -18,8 +18,8 @@ class P(process, spec_lam.P):
         for i in range(nrequests):
             super().mutex(task)
 
-        send(('done', self), to=s)
-        await(each(p in s, has=received(('done', p))))
+        send(('done', self, 0), to=s)
+        await(each(p in s, has=received(('done', p, 0))))
         send(('terminating',), to=checker)
         output('terminating')
 
@@ -27,7 +27,7 @@ class P(process, spec_lam.P):
         super().send(m, to)
         super().send(('sent', m, to, logical_clock()), to= checker)
 
-    def receive (msg= m , from_= fr):
+    def receive(msg= m , from_= fr):
         super().send(('rcvd', m, fr, logical_clock()), to= checker)
 
 class Checker(process):
@@ -44,7 +44,7 @@ class Checker(process):
         pass
 
     def S1():
-        """Return false if two threads were in a critical section at the same time"""
+        """Return true if two threads were in a critical section at the same time"""
         safe = not some(
             received(('enter', _, t1)),
             received(('exit', _, t3)),
@@ -52,14 +52,13 @@ class Checker(process):
         return safe
 
     def S2():
-        """Return false if one thread releases another thread's lock"""
+        """Return true if one thread releases another thread's lock"""
         safe = not some(
             received(('enter', a, t1)),
             received(('exit', _a, t3)),
             has= not some(received(('exit', _, t2)), has= t1<t2<t3)
         )
         return safe
-
 
 def main():
     nprocs = int(sys.argv[1]) if len(sys.argv) > 1 else 5

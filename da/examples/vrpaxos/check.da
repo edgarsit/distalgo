@@ -1,4 +1,39 @@
+import sys
+import time
+from random import randint, sample
+
 import spec
 
-def main():
+class Replica(spec.Replica):
     pass
+class Leader(spec.Leader):
+    pass
+class Acceptor(spec.Acceptor):
+    pass
+class Client(spec.Client):
+    pass
+
+
+def main():
+  nreplicas = int(sys.argv[1]) if len(sys.argv) > 1 else 2
+  nacceptors = int(sys.argv[2]) if len(sys.argv) > 2 else 3
+  nleaders = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+  nclients = int(sys.argv[4]) if len(sys.argv) > 4 else 1
+  nrequests = int(sys.argv[5]) if len(sys.argv) > 5 else 100
+  send_failrate = float(sys.argv[6]) if len(sys.argv) > 5 else 0.0
+
+  replicas = new(Replica, num= nreplicas, send=send_failrate)
+  acceptors = new(Acceptor, (), num= nacceptors, send=send_failrate)
+  all_leaders = new(Leader, (acceptors, replicas), num= nleaders*2, send=send_failrate)
+  leaders = sample(all_leaders, len(all_leaders)//2, send=send_failrate)
+  state = []; setup(replicas, (leaders, state))
+  clients = new(Client, (replicas, nrequests, all_leaders), num= nclients)
+
+  start(replicas | acceptors)
+  start(all_leaders)
+  start(clients)
+
+  time.sleep(10)
+  end(clients)
+  end(all_leaders)
+  end(replicas | acceptors)

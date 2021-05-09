@@ -294,7 +294,7 @@ AggregateMap = {
     KW_AGGREGATE_SUM  : dast.SumExpr,
     # KW_AGGREGATE_PROD  : dast.ProdExpr,
 }
-ComprehensionTypes = {KW_COMP_SET, KW_COMP_TUPLE, KW_COMP_DICT, KW_COMP_LIST, 
+ComprehensionTypes = {KW_COMP_SET, KW_COMP_TUPLE, KW_COMP_DICT, KW_COMP_LIST,
                       KW_COMP_MAX, KW_COMP_MIN, KW_COMP_SUM, KW_COMP_LEN, KW_COMP_COUNT, KW_COMP_PROD}
 EventKeywords = {KW_EVENT_DESTINATION, KW_EVENT_SOURCE, KW_EVENT_LABEL,
                  KW_EVENT_TIMESTAMP}
@@ -1509,7 +1509,7 @@ class Parser(NodeVisitor, CompilerMessagePrinter):
         if self.current_process is not None:
             self.warn("'global' statement inside process is redundant and "
                       "ignored.", node)
-        else:
+        if True:
             self.create_stmt(dast.GlobalStmt, node,
                              {"names": list(node.names)})
             for name in node.names:
